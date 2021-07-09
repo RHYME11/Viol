@@ -88,13 +88,6 @@ void B1RunAction::BeginOfRunAction(const G4Run*)
 void B1RunAction::EndOfRunAction(const G4Run* run)
 {
   G4int nofEvents = run->GetNumberOfEvent();
-
-  // NEW STUFF
-  // Print number of processed events
-  //G4int nofEventsP = run->GetNumberOfEventToBeProcessed();
-  //G4cout << G4endl << "NUM EVENTS : " << nofEvents << G4endl
-  //G4cout << G4endl << "NUM PROCESSED EVENTS : " << nofEventsP << G4endl;
-  
   if (nofEvents == 0) return;
 
   // Merge accumulables 
@@ -112,7 +105,7 @@ void B1RunAction::EndOfRunAction(const G4Run* run)
   const B1DetectorConstruction* detectorConstruction
    = static_cast<const B1DetectorConstruction*>
      (G4RunManager::GetRunManager()->GetUserDetectorConstruction());
-  G4double mass = detectorConstruction->GetScoringVolumeStop()->GetMass();
+  G4double mass = detectorConstruction->GetScoringVolume1()->GetMass();
   G4double dose = edep/mass;
   G4double rmsDose = rms/mass;
 

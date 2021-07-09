@@ -39,16 +39,12 @@ B1EventAction::B1EventAction(B1RunAction* runAction)
 : G4UserEventAction(),
   fRunAction(runAction),
   fEdep(0.)
-{
-ofile.open("junk.dat");
-} 
+{} 
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 B1EventAction::~B1EventAction()
-{
-ofile.close();
-}
+{}
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -57,7 +53,7 @@ void B1EventAction::BeginOfEventAction(const G4Event*)
   fEdep = 0.;
 // ENTERING EDIT ZONE
 // say when a new event starts?
-  ofile << G4endl << "Start event" << G4endl ;
+//  G4cout << G4endl << "Start event" << G4endl ;
 
 // should be all clear
 

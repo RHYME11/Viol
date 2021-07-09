@@ -36,118 +36,172 @@
 #include "G4RunManager.hh"
 #include "G4LogicalVolume.hh"
 
-#include <TH1D.h>
+#include "G4SystemOfUnits.hh"
+#include "G4VTouchable.hh"
+
+#include<TH1D.h>
+
+using std::cout;
+using std::setw;
+using std::setprecision;
 
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-B1SteppingAction::B1SteppingAction(B1EventAction* eventAction)
+    B1SteppingAction::B1SteppingAction(B1EventAction* eventAction)
 : G4UserSteppingAction(),
-  fEventAction(eventAction),
-  fScoringVolumeInitial(0),
-  fScoringVolumeStop(0)
+    fEventAction(eventAction),
+    fScoringVolumeEnv(0),
+    fScoringVolume1(0),
+    fScoringVolume2(0)
 {
-  ofile.open("junk.dat");
-  ofile << "EventID/I:"
-//        << setw(10) << "TrackID"
-//        << "particle/C:"
-        << "stepnum/I:"
-        << "volumeName/I:"
-        << "edepStep_keV/D:"
-        << "edep_keV/D:"
-        << "KEparticle_keV/D:"
-        << "globalx_um/D:"
-        << "globaly_um/D:"
-        << "globalz_um/D" << G4endl;
-/*        << setw(10) << "global_t_ns/D:"
-        << setw(10) << "steplen_mm/D:"
-        << setw(10) << "momentum_keV/D:"
- 
-*/
-  TH1D h("h","h",100,0,100);
+    filecount = 0;
+    counter = 0; 
+    OpenOfile();
+    
+
+    //outfile = TFile::Open("output.root");
+    //G4Step* step;
+    //tree->Branch("step",&step);    
+
+
 }
+
+void B1SteppingAction::OpenOfile(){ 
+    std::string name = "run_";
+    name.append(std::to_string(filecount++));
+    name.append(".dat");
+    ofile.open(name);
+    //ofile << " " << setw(5) << "trackid" << " " 
+    ofile  << setw(5) << "EventID/I:" 
+        << setw(5) << "particle/C:"
+        << setw(10) << "volumeName/I:" 
+        << setw(10) << "edepStep_keV/D:"
+        << setw(10) << "KEparticle_keV/D:"
+        << setw(10) << "global_t_ns/D:" 
+        << setw(10) << "steplen_mm/D:" 
+        << setw(10) << "momentum_keV/D:"
+        //<< " " << setw(10) << "momentum.x/keV" << " "
+        //<< " " << setw(10) << "momentum.y/mm" << " "
+        //<< " " << setw(10) << "momentum.z/mm" << " " 
+        << setw(10) << "globalx_um/D:" 
+        << setw(10) << "globaly_um/D:" 
+        << setw(10) << "globalz_um/D"  <<G4endl;
+        //<< " " << setw(10) << "local.x()/mm" << " "
+        //<< " " << setw(10) << "local.y()/mm" << " "
+        //<< " " << setw(10) << "local.z()/mm" << " " << G4endl;
+
+}
+
+void B1SteppingAction::CloseOfile(){ 
+    ofile.close();
+}
+
+
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 B1SteppingAction::~B1SteppingAction()
 {
-  ofile.close();
+    //ofile.close();
+    CloseOfile();
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 void B1SteppingAction::UserSteppingAction(const G4Step* step)
 {
-  if (!fScoringVolumeInitial) { 
-    const B1DetectorConstruction* detectorConstruction
-      = static_cast<const B1DetectorConstruction*>
-        (G4RunManager::GetRunManager()->GetUserDetectorConstruction());
-    fScoringVolumeInitial = detectorConstruction->GetScoringVolumeInitial();   
-  }
+    if (!fScoringVolumeEnv) { 
+        const B1DetectorConstruction* detectorConstruction
+            = static_cast<const B1DetectorConstruction*>
+            (G4RunManager::GetRunManager()->GetUserDetectorConstruction());
+        fScoringVolumeEnv = detectorConstruction->GetScoringVolumeEnv();   
+    }
+    if (!fScoringVolume1) { 
+        const B1DetectorConstruction* detectorConstruction
+            = static_cast<const B1DetectorConstruction*>
+            (G4RunManager::GetRunManager()->GetUserDetectorConstruction());
+        fScoringVolume1 = detectorConstruction->GetScoringVolume1();   
+    }
+    if (!fScoringVolume2) { 
+        const B1DetectorConstruction* detectorConstruction
+            = static_cast<const B1DetectorConstruction*>
+            (G4RunManager::GetRunManager()->GetUserDetectorConstruction());
+        fScoringVolume2 = detectorConstruction->GetScoringVolume2();   
+    }
 
-  if (!fScoringVolumeStop) {                       
-    const B1DetectorConstruction* detectorConstruction
-      = static_cast<const B1DetectorConstruction*>
-        (G4RunManager::GetRunManager()->GetUserDetectorConstruction());
-    fScoringVolumeStop = detectorConstruction->GetScoringVolumeStop();
-  }
+    // get volume of the current step
+    G4LogicalVolume* volume 
+        = step->GetPreStepPoint()->GetTouchableHandle()
+        ->GetVolume()->GetLogicalVolume();
 
-  // get volume of the current step
-  G4LogicalVolume* volume 
-    = step->GetPreStepPoint()->GetTouchableHandle()
-      ->GetVolume()->GetLogicalVolume();
-      
-  // check if we are in scoring volume
-  //if ((volume != fScoringVolumeInitial) && (volume != fScoringVolumeStop)) return;
+    // check if we are in scoring volume
+    //if (volume != fScoringVolume) return;
 
-  // collect energy deposited in this step
-  G4double edepStep = step->GetTotalEnergyDeposit();
-  fEventAction->AddEdep(edepStep);  
+    // collect energy deposited in this step
+    G4double edepStep = step->GetTotalEnergyDeposit();
+    fEventAction->AddEdep(edepStep);  
 
-  // TESTING ZONE
+    // TESTING ZONE
 
-  // Get post-step point
-  G4StepPoint* prestep = step->GetPreStepPoint();
-  
-  G4ThreeVector presteppos = prestep->GetPosition(); // position
-  G4double kepart = prestep->GetKineticEnergy();         // particle energy
-  G4ThreeVector ppart = prestep->GetMomentum();
 
-  // Tracks????? 
-  G4Track* track = step->GetTrack();
+    // Get post-step point
+    G4StepPoint* poststep = step->GetPostStepPoint();
 
-  //G4int trackid = track->GetTrackID();
-  G4int stepnum = track->GetCurrentStepNumber();
-  G4String partname = track->GetParticleDefinition()->GetParticleName();
-  G4String typelim = "proton";
-  G4int score;
+    G4ThreeVector poststeppos = poststep->GetPosition(); // position
+    G4double epart = poststep->GetTotalEnergy();         // particle energy
+    G4ThreeVector ppart = poststep->GetMomentum();
 
-  if (volume == fScoringVolumeInitial){
-    score = 1;
-  }
-  else if (volume == fScoringVolumeStop){
-    score = 2;
-  }
-  else {
-    score = 0;
-  }
+    G4Track* track = step->GetTrack();
+    //track->SetStepLength(0.005*mm);
 
-  if (partname == typelim){
-    G4cout 
-          << G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID()
-//          << G4EventManager::GetEventManager()->GetNonconstCurrentEvent()->GetEventID()
-//          << setw(10) << trackid
-//          << "\t" << partname
-          << "\t" << stepnum
-          << "\t" << score
-          << "\t" << edepStep/CLHEP::keV
-          << "\t" << fEventAction->GetEdep()/CLHEP::keV
-          << "\t" << kepart/CLHEP::keV
-          << "\t" << presteppos.x()/CLHEP::um
-          << "\t" << presteppos.y()/CLHEP::um
-          << "\t" << presteppos.z()/CLHEP::um << G4endl;
+    G4int trackid = track->GetTrackID();
+    G4String partname = track->GetParticleDefinition()->GetParticleName();
+    G4double KEparticle = track->GetKineticEnergy();  // get KE of particle along the track in each step
+    G4double steplength = track->GetStepLength();
+    G4String typelim = "proton";
 
-  }
+    G4int EventID = G4RunManager::GetRunManager()->GetCurrentEvent()->GetEventID();
+    G4TouchableHandle handle = step->GetPreStepPoint()->GetTouchableHandle();
+    G4ThreeVector pos = handle->GetHistory()->GetTopTransform().TransformPoint(step->GetPostStepPoint()->GetPosition());
+
+    G4int volumeName = 0;
+    if(volume==fScoringVolumeEnv) {
+        volumeName = 3; // envelope = vacuum
+    }else if(volume==fScoringVolume1){
+        volumeName = 1; // shape1 = Al
+    }else if(volume==fScoringVolume2){
+        volumeName = 2;  // shape2 = vacuum
+    }else{
+        volumeName = 0; // world = vacuum
+    }
+
+    if (fabs(EventID-counter)>50000){
+        CloseOfile();
+        OpenOfile();
+        counter = EventID;
+    }
+    //ofile << " " << setw(5) << trackid << " " 
+    ofile << " " << setw(5) << EventID << " " 
+        << " " << setw(10) << partname << " "
+        //<< " " << setw(10) <<volume->GetName() << " "
+        << " " << setw(10) <<volumeName<< " "
+        << " " << setw(10) << edepStep/keV << " "
+        << " " << setw(10) << KEparticle/keV << " "
+        << " " << setw(10) << track->GetGlobalTime()/ns << " "
+        << " " << setw(10) << steplength/micrometer  << " "
+        << " " << setw(10) << track->GetMomentum().mag()/keV << " "
+        //<< " " << setw(10) << track->GetMomentum().x()/keV << "keV "
+        //<< " " << setw(10) << track->GetMomentum().y()/keV << "keV "
+        //<< " " << setw(10) << track->GetMomentum().z()/keV << "keV "
+        << " " << setw(10) << poststeppos.x()/micrometer  << " "
+        << " " << setw(10) << poststeppos.y()/micrometer  << " "
+        << " " << setw(10) << poststeppos.z()/micrometer  << " "<<G4endl; 
+        //<< " " << setw(10) << pos.x()/micrometer << " "
+        //<< " " << setw(10) << pos.y()/micrometer << " "
+        //<< " " << setw(10) << pos.z()/micrometer << " " << G4endl;
+    //if(KEparticle<1*keV) ofile << G4endl;
+
 }
 
 //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
